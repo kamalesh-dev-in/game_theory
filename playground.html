@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Axelrod's Tournament — Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #F4F6F9;
+    --bg2: #ECEFF5;
+    --surface: #FFFFFF;
+    --ink: #1A1D24;
+    --ink-2: #4A5160;
+    --muted: #7A8294;
+    --line: #E6EAF0;
+    --line-2: #EFF2F7;
+    --coop: #2E9D6A;
+    --coop-tint: #DCEFE3;
+    --defect: #D9574E;
+    --defect-tint: #FBE5E2;
+    --p1: #5566C9;
+    --p1-tint: #E7EBFB;
+    --p2: #525C6E;
+    --p2-tint: #EAECF1;
+    --gold: #C99A3E;
+    --gold-tint: #F6EDD8;
+    --shadow: 0 1px 2px rgba(16,24,40,.04), 0 12px 30px -18px rgba(16,24,40,.18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: linear-gradient(180deg, var(--bg), var(--bg2));
+    color: var(--ink); font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 18px 80px; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+
+  /* App shell */
+  .app-bar { position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--surface) 84%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .app-bar-inner { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; gap: 16px; padding: 12px 18px; }
+  .app-bar .brand { font-weight: 800; font-size: 1.02rem; letter-spacing: -0.02em; white-space: nowrap; display: flex; align-items: center; gap: 9px; }
+  .app-bar .brand .mark { width: 26px; height: 26px; border-radius: 8px; background: var(--p1); color: #fff; display: grid; place-items: center; flex: none; }
+  .app-bar .brand .mark svg { width: 15px; height: 15px; }
+  .app-bar .tabs { display: inline-flex; gap: 2px; background: var(--line-2); border: 1px solid var(--line); border-radius: 11px; padding: 3px; }
+  .app-bar .tabs button { border: none; background: transparent; font-family: inherit; font-size: 0.82rem; font-weight: 600; color: var(--muted); padding: 7px 13px; border-radius: 8px; cursor: pointer; transition: background .15s, color .15s; white-space: nowrap; }
+  .app-bar .tabs button:hover { color: var(--ink-2); }
+  .app-bar .tabs button.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(16,24,40,.08); }
+  .app-bar .slot-summary { margin-left: auto; font-size: 0.8rem; color: var(--muted); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .app-bar .slot-summary .p1n { color: var(--p1); font-weight: 700; }
+  .app-bar .slot-summary .vs { opacity: .65; }
+  .app-bar .slot-summary .p2n { color: var(--p2); font-weight: 700; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 20px; }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .card-head h2 { font-size: 1.08rem; margin: 0; letter-spacing: -0.01em; }
+  .card-head .sub { color: var(--muted); font-size: 0.84rem; margin: 0; }
+
+  .ic { width: 22px; height: 22px; flex: none; }
+  .ic.lg { width: 30px; height: 30px; }
+
+  /* Segmented toggle */
+  .seg { display: inline-flex; background: var(--line-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg button { border: none; background: transparent; font-family: inherit; font-size: 0.82rem; font-weight: 600; color: var(--muted); padding: 7px 14px; border-radius: 8px; cursor: pointer; transition: background .15s, color .15s; display: inline-flex; align-items: center; gap: 7px; }
+  .seg button.on1 { background: var(--p1); color: #fff; }
+  .seg button.on2 { background: var(--p2); color: #fff; }
+  .seg .dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; opacity: .8; }
+
+  /* Screen: Strategies — hero + roster + cards */
+  .strategies-screen { padding: 0; overflow: hidden; }
+  .hero { display: flex; align-items: center; gap: 24px; padding: 28px 26px; background: linear-gradient(135deg, var(--p1-tint), var(--surface) 72%); border-bottom: 1px solid var(--line); }
+  .hero-text { flex: 1; min-width: 0; }
+  .hero-text .eyebrow { display: inline-block; font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--p1); font-weight: 700; background: var(--surface); padding: 4px 10px; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--p1) 22%, var(--line)); margin-bottom: 12px; }
+  .hero-text h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); margin: 0 0 8px; letter-spacing: -0.02em; font-weight: 800; }
+  .hero-text p { margin: 0; color: var(--ink-2); font-size: 0.92rem; max-width: 58ch; }
+  .hero-art { flex: none; }
+  .hero-art-svg { width: 168px; height: 100px; display: block; }
+  .roster-bar { display: flex; align-items: center; gap: 12px; padding: 16px 26px; border-bottom: 1px solid var(--line-2); flex-wrap: wrap; }
+  .roster-bar .roster-label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .roster-bar .to-play { margin-left: auto; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 14px; padding: 18px 26px 26px; }
+
+  .scard { position: relative; border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--surface); cursor: pointer; transition: transform .14s, box-shadow .18s, border-color .18s; }
+  .scard:hover { transform: translateY(-3px); box-shadow: 0 12px 26px -16px rgba(16,24,40,.24); border-color: color-mix(in srgb, var(--ink) 14%, var(--line)); }
+  .scard.is1 { border-color: var(--p1); box-shadow: 0 0 0 3px var(--p1-tint); }
+  .scard.is2 { border-color: var(--p2); box-shadow: 0 0 0 3px var(--p2-tint); }
+  .scard .top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; padding-right: 52px; }
+  .scard .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--line-2); color: var(--ink-2); flex: none; transition: background .18s, color .18s; }
+  .scard .ico svg { width: 23px; height: 23px; }
+  .scard:hover .ico { background: var(--p1-tint); color: var(--p1); }
+  .scard.is1 .ico { background: var(--p1-tint); color: var(--p1); }
+  .scard.is2 .ico { background: var(--p2-tint); color: var(--p2); }
+  .scard .nm { font-weight: 700; font-size: 0.95rem; line-height: 1.2; }
+  .scard .role { font-size: 0.7rem; color: var(--muted); }
+  .scard .rule { font-size: 0.82rem; color: var(--ink-2); margin: 0; line-height: 1.45; min-height: 4.2em; }
+  .scard .tag { position: absolute; top: 13px; right: 13px; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 20px; font-weight: 700; }
+  .tag.nice { background: var(--coop-tint); color: var(--coop); }
+  .tag.nasty { background: var(--defect-tint); color: var(--defect); }
+  .tag.neutral { background: var(--line-2); color: var(--muted); }
+  .tag.you { background: var(--p1-tint); color: var(--p1); }
+  .assign { position: absolute; left: 16px; bottom: 14px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.68rem; font-weight: 700; padding: 4px 9px; border-radius: 6px; color: #fff; letter-spacing: 0.06em; box-shadow: 0 2px 6px -2px rgba(16,24,40,.3); }
+  .assign.a1 { background: var(--p1); } .assign.a2 { background: var(--p2); }
+
+  /* Duel arena */
+  .versus { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: stretch; margin-bottom: 16px; }
+  .player { border: 1.5px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px; position: relative; overflow: hidden; }
+  .player.p1 { border-color: color-mix(in srgb, var(--p1) 35%, var(--line)); background: linear-gradient(180deg, var(--p1-tint), #fff 60%); }
+  .player.p2 { border-color: color-mix(in srgb, var(--p2) 35%, var(--line)); background: linear-gradient(180deg, var(--p2-tint), #fff 60%); }
+  .player .hd { display: flex; align-items: center; gap: 10px; }
+  .player .pico { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; color: #fff; }
+  .player.p1 .pico { background: var(--p1); } .player.p2 .pico { background: var(--p2); }
+  .player .pico svg { width: 24px; height: 24px; }
+  .player .pnm { font-weight: 700; font-size: 0.96rem; line-height: 1.15; }
+  .player .prole { font-size: 0.72rem; color: var(--muted); }
+  .player .score { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 2.1rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1; margin-top: 2px; }
+  .player .last { display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; color: var(--muted); }
+  .player .pinfo { margin-left: auto; padding: 4px 9px; font-size: 0.7rem; }
+  .movechip { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.66rem; font-weight: 700; }
+  .movechip.C { background: var(--coop-tint); color: var(--coop); }
+  .movechip.D { background: var(--defect-tint); color: var(--defect); }
+  .movechip._ { background: var(--line-2); color: var(--muted); }
+
+  .center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-width: 168px; padding: 6px; }
+  .round-big { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em; }
+  .round-big .of { color: var(--muted); font-weight: 500; }
+  .round-lab { font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .outcome { text-align: center; min-height: 44px; }
+  .outcome .ot { font-size: 0.8rem; font-weight: 700; }
+  .outcome .op { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.78rem; color: var(--muted); }
+  .vbar { width: 100%; height: 5px; background: var(--line-2); border-radius: 6px; overflow: hidden; }
+  .vbar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--p1), var(--p2)); transition: width .25s ease; }
+
+  .human-pad { display: none; gap: 8px; justify-content: center; margin-top: 4px; }
+  .btn { font-family: inherit; font-size: 0.88rem; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-weight: 600; transition: background .14s, border-color .14s, transform .05s, box-shadow .14s; display: inline-flex; align-items: center; gap: 7px; }
+  .btn:hover { background: var(--line-2); }
+  .btn:active { transform: translateY(1px); }
+  .btn svg { width: 16px; height: 16px; }
+  .btn.primary { background: var(--p1); border-color: var(--p1); color: #fff; }
+  .btn.primary:hover { background: #3451C4; }
+  .btn.c { background: var(--coop); border-color: var(--coop); color: #fff; }
+  .btn.d { background: var(--defect); border-color: var(--defect); color: #fff; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 16px; }
+  .controls .spacer { flex: 1; }
+  .speed { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); }
+  select { font-family: inherit; font-size: 0.84rem; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); cursor: pointer; }
+  .ctl-label { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .rounds-ctl { display: inline-flex; align-items: center; gap: 7px; }
+  .rounds-custom { width: 64px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.82rem; padding: 6px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); }
+  .btn.sm { padding: 6px 12px; font-size: 0.8rem; }
+  .duel-banner { display: flex; align-items: center; gap: 12px; justify-content: center; background: var(--p1-tint); color: var(--p1); border: 1px solid color-mix(in srgb, var(--p1) 22%, var(--line)); border-radius: 12px; padding: 9px 14px; margin: 0 0 14px; font-size: 0.84rem; font-weight: 600; }
+  .po-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 16px; }
+  .po-fields { display: inline-flex; align-items: center; gap: 8px; }
+  .po-field { display: inline-flex; align-items: center; gap: 5px; }
+  .po-field > span { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.78rem; font-weight: 700; color: var(--muted); width: 11px; text-align: center; }
+  .po-input { width: 50px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.86rem; font-weight: 600; padding: 6px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); }
+  .po-input:focus { outline: none; border-color: var(--p1); box-shadow: 0 0 0 3px var(--p1-tint); }
+  .po-reset { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 0.8rem; font-weight: 600; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 7px 11px; cursor: pointer; transition: background .14s, color .14s, border-color .14s; }
+  .po-reset:hover { background: var(--p1-tint); color: var(--p1); border-color: color-mix(in srgb, var(--p1) 22%, var(--line)); }
+  .po-reset:active { transform: translateY(1px); }
+  .po-reset svg { width: 15px; height: 15px; }
+  .po-warn { flex: 1 1 100%; font-size: 0.8rem; font-weight: 600; color: var(--defect); background: var(--defect-tint); border: 1px solid color-mix(in srgb, var(--defect) 26%, transparent); border-radius: 9px; padding: 7px 11px; }
+
+  /* Moves table (horizontal — rounds as columns) */
+  .table-wrap { margin-top: 14px; }
+  .table-head { font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .legend-c, .legend-d { display: inline-grid; place-items: center; width: 19px; height: 19px; border-radius: 5px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.64rem; font-weight: 700; vertical-align: middle; }
+  .legend-c { background: var(--coop-tint); color: var(--coop); }
+  .legend-d { background: var(--defect-tint); color: var(--defect); }
+  .table-scroll { border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; overflow-y: hidden; background: #FCFCFD; position: relative; min-height: 150px; }
+  .table-scroll::-webkit-scrollbar { height: 9px; } .table-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+  .moves.h { border-collapse: collapse; font-size: 0.93rem; }
+  .moves.h thead th { position: sticky; top: 0; background: #F4F6F9; padding: 11px 0; min-width: 66px; text-align: center; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.7rem; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--line); z-index: 1; }
+  .moves.h th.lbl { position: sticky; left: 0; text-align: left; padding: 12px 15px; font-size: 0.84rem; font-weight: 700; white-space: nowrap; border-right: 1px solid var(--line); z-index: 2; }
+  .moves.h thead th.lbl.corner { z-index: 3; min-width: 134px; }
+  .moves.h tbody th.lbl { background: #FFF; }
+  .moves.h tbody td { padding: 13px 0; text-align: center; min-width: 66px; border-bottom: 1px solid var(--line-2); border-right: 1px solid var(--line-2); animation: cellIn .3s ease; }
+  .moves.h tbody tr:last-child td { border-bottom: none; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .box { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 700; font-size: 0.95rem; }
+  .box.C { background: var(--coop-tint); color: var(--coop); }
+  .box.D { background: var(--defect-tint); color: var(--defect); }
+  .pts { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 700; font-size: 0.8rem; color: var(--gold); }
+  .pts.zero { color: var(--muted); }
+  @keyframes cellIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+  .table-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 0.84rem; pointer-events: none; }
+
+  /* Tournament */
+  .lb { width: 100%; border-collapse: collapse; }
+  .lb th, .lb td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 0.9rem; vertical-align: middle; }
+  .lb th { font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .lb td.num { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .lb .nmcell { display: flex; align-items: center; gap: 10px; }
+  .lb .lico { width: 30px; height: 30px; border-radius: 8px; background: var(--line-2); display: grid; place-items: center; color: var(--ink-2); }
+  .lb .lico svg { width: 18px; height: 18px; }
+  .bar-cell { width: 34%; min-width: 120px; }
+  .bar { height: 9px; border-radius: 6px; background: linear-gradient(90deg, var(--p1), #7b94ee); width: 0; transition: width .6s cubic-bezier(.2,.7,.2,1); }
+  .rank { font-family: "JetBrains Mono", ui-monospace, monospace; color: var(--muted); width: 30px; font-weight: 700; }
+  .rank.gold { color: var(--gold); }
+  .lb tr.r1 td { background: var(--gold-tint); }
+  .lb tr.r1 td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+  .rk { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--line-2); color: var(--muted); font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 700; font-size: 0.78rem; }
+  .rk.rk1 { background: var(--gold); color: #fff; box-shadow: 0 3px 8px -2px color-mix(in srgb, var(--gold) 70%, transparent); }
+  .rk-ic { width: 15px; height: 15px; }
+  .bar.bar1 { background: linear-gradient(90deg, var(--gold), #e3c07a); }
+  .lb-meta { color: var(--muted); font-size: 0.8rem; margin: 12px 0 0; }
+  /* Ecology */
+  .chart-box { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: #FCFCFD; margin-top: 14px; }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.76rem; color: var(--muted); margin-bottom: 10px; }
+  .chart-legend .ld { display: inline-flex; align-items: center; gap: 6px; }
+  .chart-legend i { width: 14px; height: 3px; border-radius: 3px; display: inline-block; }
+  .chart-legend b { color: var(--ink-2); font-weight: 700; margin-left: 2px; }
+  .chart { width: 100%; height: 320px; display: block; }
+  .eco-status { font-size: 0.9rem; color: var(--ink-2); margin: 6px 0 10px; }
+
+  /* Strategy info control + selection feedback */
+  .scard .card-foot { display: flex; justify-content: flex-end; margin-top: 10px; }
+  .info-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-family: inherit; font-size: 0.74rem; font-weight: 600; padding: 5px 10px; border-radius: 8px; cursor: pointer; transition: background .14s, color .14s, border-color .14s; }
+  .info-btn:hover { background: var(--p1-tint); color: var(--p1); border-color: color-mix(in srgb, var(--p1) 22%, var(--line)); }
+  .info-btn svg { width: 14px; height: 14px; }
+  .assign-feedback { font-size: 0.82rem; color: var(--ink-2); font-weight: 600; min-height: 1.2em; flex: 0 0 100%; order: 99; line-height: 1.4; padding-top: 2px; }
+  .assign-feedback.flash { animation: assignFlash .55s ease; }
+  .assign-feedback.notice { background: var(--defect-tint); border: 1px solid color-mix(in srgb, var(--defect) 25%, transparent); border-radius: 8px; padding: 7px 11px; }
+  .scard.locked { opacity: .5; cursor: not-allowed; }
+  .scard.locked:hover { transform: none; box-shadow: none; border-color: var(--line); }
+  .scard.locked .ico, .scard.locked:hover .ico { background: var(--line-2); color: var(--muted); }
+  @keyframes assignFlash { 0% { color: var(--p1); transform: translateY(-1px); } 100% { color: var(--ink-2); transform: none; } }
+
+  /* Strategy detail modal */
+  .modal-root { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; }
+  .modal-root[hidden] { display: none !important; }
+  .modal-backdrop { position: absolute; inset: 0; background: rgba(16,24,40,.5); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+  .modal { position: relative; z-index: 1; width: min(520px, 92vw); max-height: 86vh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 24px 60px -20px rgba(16,24,40,.4); padding: 22px; }
+  .modal-x { position: absolute; top: 12px; right: 12px; border: none; background: var(--line-2); color: var(--ink-2); width: 30px; height: 30px; border-radius: 9px; font-size: 1.1rem; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+  .modal-x:hover { background: var(--line); color: var(--ink); }
+  .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding-right: 36px; }
+  .modal-ico { width: 46px; height: 46px; border-radius: 12px; background: var(--p1-tint); color: var(--p1); display: grid; place-items: center; flex: none; }
+  .modal-ico svg { width: 28px; height: 28px; }
+  .modal-head h3 { margin: 0; font-size: 1.12rem; letter-spacing: -0.01em; }
+  .modal-role { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+  .modal-essence { margin: 0 0 14px; font-size: 0.96rem; color: var(--ink); line-height: 1.5; }
+  .modal-dl { margin: 0 0 14px; display: grid; grid-template-columns: 132px 1fr; gap: 8px 14px; }
+  .modal-dl dt { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 700; padding-top: 1px; }
+  .modal-dl dd { margin: 0; font-size: 0.88rem; color: var(--ink-2); line-height: 1.5; }
+  .modal-quirk { background: var(--p1-tint); border: 1px solid color-mix(in srgb, var(--p1) 18%, var(--line)); color: var(--ink); border-radius: 12px; padding: 11px 13px; font-size: 0.86rem; line-height: 1.5; }
+  .modal-quirk strong { color: var(--p1); }
+  .modal-principle { margin: 0 0 14px; padding: 12px 14px; background: var(--p1-tint); border: 1px solid color-mix(in srgb, var(--p1) 18%, var(--line)); border-radius: 12px; font-size: 0.96rem; color: var(--ink); line-height: 1.5; }
+  .modal-label { display: block; font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--p1); font-weight: 700; margin-bottom: 4px; }
+  .primer { padding: 16px 26px; border-bottom: 1px solid var(--line-2); background: var(--surface); }
+  .primer-label { font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .primer p { margin: 8px 0 0; font-size: 0.88rem; color: var(--ink-2); line-height: 1.5; }
+  .primer .cc-t { color: var(--coop); font-weight: 700; } .primer .dd-t { color: var(--defect); font-weight: 700; }
+  .payoff-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0 4px; }
+  .pg { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--ink-2); padding: 7px 10px; border-radius: 9px; border: 1px solid var(--line); background: #FCFCFD; }
+  .pg i { font-family: "JetBrains Mono", ui-monospace, monospace; font-style: normal; font-weight: 700; padding: 2px 7px; border-radius: 6px; flex: none; }
+  .pg.cc i { background: var(--coop-tint); color: var(--coop); }
+  .pg.dc i { background: var(--defect-tint); color: var(--defect); }
+  .pg.cd i { background: var(--defect-tint); color: var(--defect); }
+  .pg.dd i { background: var(--line-2); color: var(--muted); }
+  .primer-note { font-size: 0.84rem; color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .app-bar-inner { gap: 10px; padding: 10px 14px; }
+    .app-bar .brand { font-size: 0.9rem; }
+    .app-bar .slot-summary { display: none; }
+    .app-bar .tabs button { padding: 6px 9px; font-size: 0.76rem; }
+    .hero { padding: 22px 20px; gap: 16px; }
+    .hero-art { display: none; }
+    .gallery { padding: 16px 20px 22px; }
+    .roster-bar { padding: 14px 20px; }
+  }
+  @media (max-width: 720px) {
+    .versus { grid-template-columns: 1fr; }
+    .center { order: -1; }
+  }
+  @media (max-width: 560px) {
+    .app-bar .brand .bt { display: none; }
+    .app-bar .tabs { flex: 1 1 auto; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .app-bar .tabs::-webkit-scrollbar { display: none; }
+  }
+
+  /* ---------- Phone (≤ 640px) — faithful mobile adaptation; desktop untouched ---------- */
+  @media (max-width: 640px) {
+    .wrap { padding: 16px 12px 64px; }
+    .card:not(.strategies-screen) { padding: 16px; border-radius: 14px; margin-bottom: 16px; }
+    .btn { padding: 10px 14px; }
+    .card-head { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 12px; }
+    .card-head h2 { font-size: 1.04rem; }
+    .card-head .sub { font-size: 0.8rem; }
+    .card-head > .btn { width: 100%; justify-content: center; }
+
+    /* App bar — brand mark only, all four tabs share the width evenly */
+    .app-bar-inner { gap: 8px; padding: 9px 12px; }
+    .app-bar .brand .mark { width: 24px; height: 24px; flex: none; }
+    .app-bar .brand .mark svg { width: 14px; height: 14px; }
+    .app-bar .tabs { flex: 1 1 auto; overflow-x: auto; }
+    .app-bar .tabs button { flex: 1 1 0; padding: 8px 3px; font-size: 0.72rem; text-align: center; }
+
+    /* Strategies hero + primer */
+    .hero { padding: 18px 16px; gap: 8px; }
+    .hero-text .eyebrow { font-size: 0.62rem; margin-bottom: 8px; }
+    .hero-text h2 { font-size: 1.3rem; }
+    .hero-text p { font-size: 0.86rem; }
+    .primer { padding: 14px 16px; }
+    .primer p { font-size: 0.84rem; }
+    .payoff-grid { gap: 7px; margin: 8px 0 4px; }
+    .pg { font-size: 0.76rem; padding: 7px 9px; gap: 8px; line-height: 1.35; }
+
+    /* Roster bar — stack the actions, full-width CTA */
+    .roster-bar { padding: 13px 16px; gap: 10px; }
+    .roster-bar .assign-feedback { order: 2; }
+    .roster-bar .to-play { margin-left: 0; width: 100%; justify-content: center; order: 3; }
+
+    /* Gallery — single tidy column */
+    .gallery { padding: 14px 16px 18px; grid-template-columns: 1fr; gap: 12px; }
+    .scard { padding: 14px; }
+    .scard .rule { min-height: 0; font-size: 0.8rem; }
+
+    /* Duel arena */
+    .versus { gap: 10px; margin-bottom: 14px; }
+    .player { padding: 14px; gap: 7px; }
+    .player .score { font-size: 1.8rem; }
+    .player .pinfo { padding: 5px 8px; }
+    .player .pinfo span { display: none; }
+    .center { min-width: 0; padding: 4px; }
+    .round-big { font-size: 1.34rem; }
+    .human-pad { width: 100%; }
+    .human-pad .btn { flex: 1 1 0; justify-content: center; }
+
+    /* Duel controls — Play full-width on top, settings flow below */
+    .controls { gap: 8px; }
+    .controls .spacer { display: none; }
+    .controls > .btn.primary { order: -1; flex: 1 1 100%; justify-content: center; }
+    .controls .rounds-ctl, .controls .speed { flex: 1 1 0; min-width: 0; }
+    .controls .rounds-ctl select, .controls .speed select { width: 100%; }
+
+    /* Payoff bar — stacked; the four inputs spread evenly across the row */
+    .po-bar { flex-direction: column; align-items: stretch; gap: 9px; margin-bottom: 14px; }
+    .po-fields { display: flex; width: 100%; justify-content: space-between; gap: 6px; }
+    .po-field { flex: 1 1 0; min-width: 0; }
+    .po-input { width: 100%; min-width: 0; padding: 8px 4px; text-align: center; }
+    .po-reset { align-self: flex-start; }
+
+    /* Moves table — denser columns, smaller chips */
+    .table-head { font-size: 0.7rem; }
+    .moves.h thead th { min-width: 50px; padding: 9px 0; font-size: 0.66rem; }
+    .moves.h th.lbl.corner { min-width: 84px; }
+    .moves.h tbody td { min-width: 50px; padding: 10px 0; }
+    .box { width: 30px; height: 30px; font-size: 0.86rem; }
+    .pts { font-size: 0.74rem; }
+
+    /* Tournament leaderboard — compact */
+    .lb th, .lb td { padding: 9px 6px; font-size: 0.84rem; }
+    .lb th { font-size: 0.62rem; }
+    .lb .lico { width: 26px; height: 26px; }
+    .lb .lico svg { width: 16px; height: 16px; }
+    .bar-cell { min-width: 78px; width: 24%; }
+    .rk { width: 22px; height: 22px; font-size: 0.72rem; }
+    .lb-meta { font-size: 0.76rem; }
+
+    /* Ecology — shorter chart, wrapping legend */
+    .chart { height: 240px; }
+    .chart-legend { gap: 8px 12px; font-size: 0.72rem; }
+    .eco-status { font-size: 0.86rem; }
+
+    /* Strategy detail modal — becomes a bottom sheet; stack the definition list */
+    .modal-root { padding: 0; align-items: flex-end; }
+    .modal { width: 100%; max-height: 90vh; border-radius: 16px 16px 0 0; padding: 18px; }
+    .modal-dl { grid-template-columns: 1fr; gap: 3px 0; }
+    .modal-dl dt { padding-top: 10px; }
+    .modal-dl dd { font-size: 0.86rem; }
+    .modal-essence { font-size: 0.92rem; }
+  }
+
+  /* Very small phones (≤ 360px) — keep the tab row readable */
+  @media (max-width: 360px) {
+    .app-bar .tabs button { font-size: 0.68rem; padding: 8px 2px; }
+    .player .score { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+<header class="app-bar">
+  <div class="app-bar-inner">
+    <div class="brand"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h11"/><path d="M11 5l4 4-4 4"/><path d="M20 15H9"/><path d="M13 11l-4 4 4 4"/></svg></span><span class="bt">Axelrod's Tournament</span></div>
+    <nav class="tabs">
+      <button data-nav="strategies" class="active">Strategies</button>
+      <button data-nav="duel">Playground</button>
+      <button data-nav="tournament">Tournament</button>
+      <button data-nav="ecology">Ecology</button>
+    </nav>
+    <div class="slot-summary" id="slotSummary"></div>
+  </div>
+</header>
+<main class="wrap">
+
+  <!-- STRATEGY GALLERY -->
+  <section class="card strategies-screen" data-screen="strategies">
+    <div class="hero">
+      <div class="hero-text">
+        <span class="eyebrow">The Roster</span>
+        <h2>Choose your strategies</h2>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <svg class="hero-art-svg" viewBox="0 0 168 100" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="50" cy="38" r="15" style="fill:var(--p1)"/>
+          <path d="M26 84c0-16 48-16 48 0" style="stroke:var(--p1)" stroke-width="8"/>
+          <circle cx="118" cy="38" r="15" style="fill:var(--p2)"/>
+          <path d="M94 84c0-16 48-16 48 0" style="stroke:var(--p2)" stroke-width="8"/>
+          <g style="stroke:var(--muted)" stroke-width="2.4" fill="none">
+            <path d="M68 32h24"/><path d="M84 25l8 7-8 7"/>
+            <path d="M100 54h-24"/><path d="M84 47l-8 7 8 7"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div class="primer">
+      <span class="primer-label">How the game works</span>
+      <p>Each round, both players secretly choose <b class="cc-t">Cooperate</b> or <b class="dd-t">Defect</b>. Their two choices combine into one of four outcomes:</p>
+      <div class="payoff-grid">
+        <span class="pg cc"><i id="pgCC">3 · 3</i> both cooperate mutual reward</span>
+        <span class="pg dc"><i id="pgDC">5 · 0</i> you defect, they cooperate, you exploit them</span>
+        <span class="pg cd"><i id="pgCD">0 · 5</i> you cooperate, they defect, you get played</span>
+        <span class="pg dd"><i id="pgDD">1 · 1</i> both defect mutual ruin</span>
+      </div>
+      <p class="primer-note">Cooperating together (3 · 3) beats both cheating (1 · 1) — yet the 5-point prize tempts each side to defect. A <b>strategy</b> is simply a fixed rule for when to cooperate or defect; the tournament reveals which rules win.</p>
+    </div>
+    <div class="roster-bar">
+      <span class="roster-label">Assign to</span>
+      <div class="seg" id="slotToggle">
+        <button class="on1" data-slot="1"><span class="dot"></span>Player 1</button>
+        <button data-slot="2"><span class="dot"></span>Player 2</button>
+      </div>
+      <div class="assign-feedback" id="assignFeedback" aria-live="polite"></div>
+      <button class="btn primary to-play" id="toPlayBtn">Go to Playground <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg></button>
+    </div>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <!-- DUEL -->
+  <section class="card" data-screen="duel" hidden>
+    <div class="card-head"><div><h2>Playground</h2><p class="sub"><span id="roundsLabel">200</span> rounds · payoff <span id="payoffSub">R=3 / S=0 / T=5 / P=1</span> (cooperate · defect).</p></div></div>
+
+    <div class="versus">
+      <div class="player p1">
+        <div class="hd"><div class="pico" id="p1ico"></div><div><div class="pnm" id="p1nm">—</div><div class="prole" id="p1role">Player 1</div></div><button class="info-btn pinfo" id="p1info" type="button" aria-label="How Player 1 plays"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span>How it plays</span></button></div>
+        <div class="score mono" id="p1score">0</div>
+        <div class="last">last move <span class="movechip _" id="p1last">·</span></div>
+      </div>
+      <div class="center">
+        <div class="round-lab">Round</div>
+        <div class="round-big mono"><span id="roundNow">0</span><span class="of"> / <span id="roundsOf">200</span></span></div>
+        <div class="vbar"><i id="vbar"></i></div>
+        <div class="outcome" id="outcome"><div class="ot">Press play</div><div class="op">to begin</div></div>
+        <div class="human-pad" id="humanPad">
+          <button class="btn c" data-m="C">Cooperate</button>
+          <button class="btn d" data-m="D">Defect</button>
+        </div>
+      </div>
+      <div class="player p2">
+        <div class="hd"><div class="pico" id="p2ico"></div><div><div class="pnm" id="p2nm">—</div><div class="prole" id="p2role">Player 2</div></div><button class="info-btn pinfo" id="p2info" type="button" aria-label="How Player 2 plays"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span>How it plays</span></button></div>
+        <div class="score mono" id="p2score">0</div>
+        <div class="last">last move <span class="movechip _" id="p2last">·</span></div>
+      </div>
+    </div>
+
+    <div class="duel-banner" id="resumeHint" style="display:none"><span>Auto-run was paused when you switched screens.</span><button class="btn primary sm" id="resumeBtn">Resume</button></div>
+
+    <div class="controls">
+      <button class="btn primary" id="autoBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg><span id="autoLbl">Play</span></button>
+      <button class="btn" id="stepBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>Step</button>
+      <button class="btn" id="resetBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2.5-9.4L1 10"/></svg>Reset</button>
+      <div class="spacer"></div>
+      <div class="rounds-ctl"><span class="ctl-label">Rounds</span>
+        <select id="roundsSel"><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="200" selected>200</option><option value="custom">Custom…</option></select>
+        <input type="number" id="roundsCustom" class="rounds-custom" min="1" max="1000" value="200" style="display:none" />
+      </div>
+      <div class="speed"><span class="ctl-label">Speed</span>
+        <select id="speed"><option value="2000">Slow · 2s</option><option value="1200" selected>Normal · 1.2s</option><option value="500">Fast · 0.5s</option><option value="0">Instant</option></select>
+      </div>
+    </div>
+
+    <div class="po-bar">
+      <span class="ctl-label">Payoffs</span>
+      <div class="po-fields">
+        <label class="po-field"><span>R</span><input type="number" id="poR" class="po-input" min="0" max="20" value="3" aria-label="Reward — both cooperate" /></label>
+        <label class="po-field"><span>S</span><input type="number" id="poS" class="po-input" min="0" max="20" value="0" aria-label="Sucker — you cooperate, they defect" /></label>
+        <label class="po-field"><span>T</span><input type="number" id="poT" class="po-input" min="0" max="20" value="5" aria-label="Temptation — you defect, they cooperate" /></label>
+        <label class="po-field"><span>P</span><input type="number" id="poP" class="po-input" min="0" max="20" value="1" aria-label="Punishment — both defect" /></label>
+      </div>
+      <button class="po-reset" type="button" id="poReset" title="Reset to default payoffs (5 / 3 / 1 / 0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2.5-9.4L1 10"/></svg>Reset</button>
+      <span class="po-warn" id="poWarn" hidden></span>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-head"><span>Round-by-round</span><span><span class="legend-c">C</span> cooperate &nbsp; <span class="legend-d">D</span> defect &nbsp;·&nbsp; points per player</span></div>
+      <div class="table-scroll" id="tableScroll">
+        <table class="moves h">
+          <thead><tr id="roundHead"><th class="lbl corner">#</th></tr></thead>
+          <tbody>
+            <tr id="row1"><th class="lbl" id="lbl1">Player 1</th></tr>
+            <tr id="row2"><th class="lbl" id="lbl2">Player 2</th></tr>
+          </tbody>
+        </table>
+        <div class="table-empty" id="tableEmpty">No rounds yet — press Play.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TOURNAMENT -->
+  <section class="card" data-screen="tournament" hidden>
+    <div class="card-head"><div><h2>Tournament</h2><p class="sub">Every strategy plays every other (and itself), 200 rounds each. Ranked by average points per turn.</p></div>
+      <button class="btn primary" id="runBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>Run tournament</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="lb" id="lb">
+        <thead><tr><th class="rank">#</th><th>Strategy</th><th>Temper</th><th class="bar-cell">Avg score / turn</th><th class="num">Avg</th></tr></thead>
+        <tbody id="lbBody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:22px;">Press “Run tournament” to see the leaderboard.</td></tr></tbody>
+      </table>
+    </div>
+    <p class="lb-meta">Reference: in Axelrod's original, Tit for Tat won — and nice strategies dominated the top of the table.</p>
+  </section>
+
+  <!-- ECOLOGY -->
+  <section class="card" data-screen="ecology" hidden>
+    <div class="card-head"><div><h2>Ecology</h2><p class="sub">Evolution over generations: strategies that score above average reproduce, weak ones die out. Watch cooperation take over.</p></div>
+      <button class="btn primary" id="ecoBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>Run ecology</button>
+    </div>
+    <div class="eco-status" id="ecoStatus">Press “Run ecology” to evolve 150 generations.</div>
+    <div class="chart-box">
+      <div class="chart-legend" id="ecoLegend"></div>
+      <svg class="chart" id="ecoChart" viewBox="0 0 600 320" preserveAspectRatio="none">
+        <line x1="0" y1="80" x2="600" y2="80" stroke="var(--line)" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>
+        <line x1="0" y1="160" x2="600" y2="160" stroke="var(--line)" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>
+        <line x1="0" y1="240" x2="600" y2="240" stroke="var(--line)" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>
+        <g id="ecoLines"></g>
+      </svg>
+    </div>
+    <p class="lb-meta">Population share over 150 generations, <b>animated</b> as it evolves. The bold indigo line is the eventual winner; every strategy has its own colour so you can follow it across the run.</p>
+  </section>
+</main>
+
+<div class="modal-root" id="strategyModal" hidden>
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="modal-x" type="button" data-modal-close aria-label="Close details">&times;</button>
+    <div class="modal-head">
+      <div class="modal-ico" id="modalIco"></div>
+      <div><h3 id="modalTitle">—</h3><div class="modal-role" id="modalRole"></div></div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+function showFatal(msg) {
+  try {
+    if (document.getElementById("fatalBanner")) return;
+    var b = document.createElement("div");
+    b.id = "fatalBanner";
+    b.setAttribute("style", "position:fixed;top:0;left:0;right:0;z-index:10000;background:#D9574E;color:#fff;font-family:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:0.9rem;font-weight:500;line-height:1.45;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;text-align:center;box-shadow:0 6px 18px rgba(0,0,0,.22);");
+    var safe = msg ? String(msg).replace(/</g, "&lt;") : "Unknown error";
+    b.innerHTML = "<strong>Playground failed to load.</strong> " + safe + ' &nbsp;·&nbsp; <span style="opacity:.92">Try a hard reload (Cmd/Ctrl+Shift+R).</span>';
+    (document.body || document.documentElement).appendChild(b);
+  } catch (e) {}
+}
+window.addEventListener("error", function (e) { var msg = e && e.error && e.error.message ? e.error.message : (e && e.message ? e.message : "Unknown error"); showFatal(msg); });
+var PAYOFF = { CC: [3, 3], CD: [0, 5], DC: [5, 0], DD: [1, 1] };
+var OUTCOMES = { CC: ["Mutual reward", "3 · 3"], CD: ["You got played", "0 · 5"], DC: ["Temptation", "5 · 0"], DD: ["Mutual ruin", "1 · 1"] };
+function isDilemma(p) { return p.T > p.R && p.R > p.P && p.P > p.S && (2 * p.R) > (p.T + p.S); }
+function rebuildPayoff() { var p = store.payoff; PAYOFF = { CC: [p.R, p.R], CD: [p.S, p.T], DC: [p.T, p.S], DD: [p.P, p.P] }; OUTCOMES = { CC: ["Mutual reward", p.R + " · " + p.R], CD: ["You got played", p.S + " · " + p.T], DC: ["Temptation", p.T + " · " + p.S], DD: ["Mutual ruin", p.P + " · " + p.P] }; }
+var DEFAULT_PAYOFF = { T: 5, R: 3, P: 1, S: 0 };
+var TOURNAMENT_ROUNDS = 200;
+function last(a) { return a.length ? a[a.length - 1] : "C"; }
+function coopRate(a) { if (!a.length) return 1; var c = 0; for (var k = 0; k < a.length; k++) if (a[k] === "C") c++; return c / a.length; }
+var TR = 0.02;
+function tr(m) { return (m === "C" && Math.random() < TR) ? "D" : m; }
+function each(list, fn) { if (!list) return; for (var i = 0; i < list.length; i++) fn(list[i], i); }
+
+// icon inner-SVG (24x24, stroke currentColor)
+var IC = {
+  you: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 16-4 16 0"/>',
+  tft: '<path d="M4 9h11"/><path d="M11 5l4 4-4 4"/><path d="M20 15H9"/><path d="M13 11l-4 4 4 4"/>',
+  tideman: '<path d="M3 19h18"/><path d="M5 19v-3h4v-3h4v-3h4V7h3"/>',
+  nydegger: '<path d="M12 3l7 3v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  grofman: '<circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/>',
+  shubik: '<rect x="4" y="14" width="3.4" height="5" rx="1"/><rect x="9.3" y="10" width="3.4" height="9" rx="1"/><rect x="14.6" y="6" width="3.4" height="13" rx="1"/>',
+  stein: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 12l5-4"/>',
+  friedman: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  davis: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+  graaskamp: '<circle cx="10" cy="10" r="6"/><path d="M14.5 14.5l5 5"/>',
+  downing: '<path d="M4 17a8 8 0 0 1 16 0"/><path d="M12 17l4-4"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>',
+  feld: '<path d="M2 12h4l2-6 3 12 2-6h9"/>',
+  joss: '<path d="M3 8c4-2 14-2 18 0 0 5-3.5 8-9 8S3 13 3 8z"/><circle cx="9" cy="9.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="9.5" r="1" fill="currentColor" stroke="none"/>',
+  tullock: '<path d="M6 18L18 6"/><circle cx="8" cy="16" r="1.7"/><circle cx="16" cy="8" r="1.7"/>',
+  unnamed: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .8-1 1.7"/><circle cx="12" cy="16.6" r="0.8" fill="currentColor" stroke="none"/>',
+  random: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/>'
+};
+function icon(key, cls) { return '<svg class="' + (cls || "ic") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (IC[key] || IC.unnamed) + "</svg>"; }
+
+var STRATEGIES = [
+  { key: "tft", name: "Tit for Tat", nice: true, ic: "tft", rule: "Round 1: cooperate. Then copy whatever the opponent did last round.", make: function () { return { move: function (my, opp) { return last(opp); }, reset: function () {} }; } },
+  { key: "tideman", name: "Tideman & Chieruzzi", nice: true, ic: "tideman", rule: "Cooperate, but punish harder each time: every new run of defections earns a longer retaliation. Forgive once they cooperate.", make: function () { var s = { runs: 0, punish: 0 }; return { move: function (my, opp) { if (!opp.length) return "C"; var ol = opp[opp.length - 1]; if (ol === "D" && (opp.length < 2 || opp[opp.length - 2] === "C")) { s.runs++; s.punish = s.runs; } if (s.punish > 0) { s.punish--; return "D"; } return ol; }, reset: function () { s = { runs: 0, punish: 0 }; } }; } },
+  { key: "nydegger", name: "Nydegger", nice: true, ic: "nydegger", rule: "Cooperate unless the opponent defected in 2 of the last 3 rounds, a forgiving three-move window.", make: function () { return { move: function (my, opp) { if (!opp.length) return "C"; var w = opp.slice(-3); var d = 0; for (var k = 0; k < w.length; k++) if (w[k] === "D") d++; return tr(d >= 2 ? "D" : "C"); }, reset: function () {} }; } },
+  { key: "grofman", name: "Grofman", nice: true, ic: "grofman", rule: "Play tit-for-tat, but under mutual defection cooperate about 2-in-7 to break the deadlock (a small imperfection keeps it just behind Tit for Tat, matching Axelrod's result).", make: function () { return { move: function (my, opp) { if (opp.length < 2) return tr("C"); var ol = last(opp); var m = (ol === "D" && my[my.length - 1] === "D") ? (Math.random() < 2 / 7 ? "C" : "D") : ol; return tr(m); }, reset: function () {} }; } },
+  { key: "shubik", name: "Shubik", nice: true, ic: "shubik", rule: "Retaliate to defection with a punishment that grows one round longer each time, then forgive.", make: function () { var s = { runs: 0, punish: 0 }; return { move: function (my, opp) { if (!opp.length) return tr("C"); var ol = opp[opp.length - 1]; if (ol === "D" && (opp.length < 2 || opp[opp.length - 2] === "C")) { s.runs++; s.punish = s.runs + 1; } if (s.punish > 0) { s.punish--; return "D"; } return tr("C"); }, reset: function () { s = { runs: 0, punish: 0 }; } }; } },
+  { key: "stein", name: "Stein & Rapoport", nice: false, ic: "stein", rule: "Mostly tit-for-tat, but every 15 rounds it defects once to probe how the opponent reacts.", make: function () { return { move: function (my, opp) { if (!opp.length) return "C"; if ((my.length + 1) % 15 === 0 && last(opp) === "C") return "D"; return last(opp); }, reset: function () {} }; } },
+  { key: "friedman", name: "Friedman (Grudger)", nice: true, ic: "friedman", rule: "Cooperate until the opponent defects even once, then defect for the rest of the game.", make: function () { return { move: function (my, opp) { return opp.indexOf("D") >= 0 ? "D" : "C"; }, reset: function () {} }; } },
+  { key: "davis", name: "Davis", nice: true, ic: "davis", rule: "Cooperate unconditionally for the first 10 rounds, then switch to tit-for-tat.", make: function () { return { move: function (my, opp) { return my.length < 10 ? "C" : last(opp); }, reset: function () {} }; } },
+  { key: "graaskamp", name: "Graaskamp", nice: false, ic: "graaskamp", rule: "Tit-for-tat, but defects once around round 50 to test for exploitable opponents.", make: function () { return { move: function (my, opp) { if (!opp.length) return "C"; if (my.length === 49) return "D"; return last(opp); }, reset: function () {} }; } },
+  { key: "downing", name: "Downing", nice: false, ic: "downing", rule: "A maximizer, but it assumes opponents won't respond to its moves, so it defects too readily and provokes retaliation (Axelrod's 'buggy Downing').", make: function () { return { move: function (my, opp) { var cC = 0, nC = 0, cD = 0, nD = 0; for (var k = 0; k < my.length - 1; k++) { if (my[k] === "C") { nC++; if (opp[k + 1] === "C") cC++; } else { nD++; if (opp[k + 1] === "C") cD++; } } var PR = 2, pC = cC / (nC + PR), pD = cD / (nD + PR); return (5 * pD + 1 * (1 - pD)) > (3 * pC) ? "D" : "C"; }, reset: function () {} }; } },
+  { key: "feld", name: "Feld", nice: true, ic: "feld", rule: "Tit-for-tat with a tremor, about 10% of the time it defects when it meant to cooperate.", make: function () { return { move: function (my, opp) { if (!opp.length) return "C"; var t = last(opp); if (t === "C" && Math.random() < 0.1) return "D"; return t; }, reset: function () {} }; } },
+  { key: "joss", name: "Joss", nice: false, ic: "joss", rule: "Tit-for-tat, but after the opponent cooperates it cooperates only 90% of the time, sneaky defections.", make: function () { return { move: function (my, opp) { if (!opp.length) return "C"; var t = last(opp); if (t === "C") return Math.random() < 0.9 ? "C" : "D"; return "D"; }, reset: function () {} }; } },
+  { key: "tullock", name: "Tullock", nice: true, ic: "tullock", rule: "Cooperate for 11 rounds, then cooperate about 10% less often than the opponent has, slightly nasty.", make: function () { return { move: function (my, opp) { return my.length < 11 ? "C" : (Math.random() < Math.max(0, coopRate(opp) - 0.1) ? "C" : "D"); }, reset: function () {} }; } },
+  { key: "unnamed", name: "Unnamed (complex)", nice: false, ic: "unnamed", rule: "Probes with an early defection; if you don't punish it, it defects forever, farming forgiving players. If punished, it plays nice.", make: function () { var s = { decided: false, exploit: false }; return { move: function (my, opp) { if (!opp.length) return "C"; if (my.length === 1) return "D"; if (my.length === 2) return "C"; if (!s.decided) { s.decided = true; s.exploit = (opp[2] === "C"); } if (s.exploit) return "D"; return last(opp); }, reset: function () { s = { decided: false, exploit: false }; } }; } },
+  { key: "random", name: "Random (baseline)", nice: null, ic: "random", rule: "Cooperate or defect at 50/50, ignoring the opponent entirely. Axelrod's added baseline.", make: function () { return { move: function () { return Math.random() < 0.5 ? "C" : "D"; }, reset: function () {} }; } }
+];
+var BY_KEY = {}; STRATEGIES.forEach(function (s) { BY_KEY[s.key] = s; });
+var HUMAN = { key: "you", name: "You (human)", nice: null, ic: "you", rule: "You decide every move yourself, click Cooperate or Defect each round." };
+
+/* ---------- Strategy explanations (how each one actually behaves) ---------- */
+var INFO = {
+  you: { principle: "There is no fixed rule here, you decide each move yourself by reading your opponent. Your principle is simply whatever you choose in the moment.", essence: "You decide every move by hand, no rule, just your choice each round.", opens: "Nothing automatic, you click Cooperate or Defect.", onCoop: "Entirely up to you: reward it, or exploit it.", onDefect: "Entirely up to you: punish it, or absorb it.", quirk: "The only player with a theory of mind. Use it to feel out why the nice, forgiving strategies keep winning." },
+  tft: { principle: "Treat the other player the way they just treated you. Start kindly, then copy their last move: reward cooperation, punish a defection, and forgive the instant they cooperate again.", essence: "Start nice, then copy exactly what your opponent just did.", opens: "Cooperate on round one.", onCoop: "Cooperate right back, kindness is rewarded.", onDefect: "Defect right back, one-for-one, and forgive the instant they cooperate again.", quirk: "Axelrod's champion: never envious, never exploitable, always forgiving. Four lines of code that beat the whole field." },
+  tideman: { principle: "Make repeat offences cost more each time. Every fresh wave of cheating earns a longer punishment, so a bully pays a steeper price the more often they restart.", essence: "Punish each new run of defections harder than the last, then forgive.", opens: "Cooperate on round one.", onCoop: "Once its punishment quota is spent, it copies your cooperation (forgives).", onDefect: "Retaliates for N rounds, where N rises by one with every fresh run of defections (1st run → 1, 2nd → 2, 3rd → 3…). It finishes the full quota before returning to nice.", quirk: "Escalating deterrence: serial bullies get hit harder every time they restart, but a one-off slip costs only one round. A top-tier nice strategy." },
+  nydegger: { principle: "Don't overreact to a single slip. Only push back once bad behaviour becomes a pattern, two defections in the last three rounds, not on one mistake.", essence: "Cooperate, and only strike back after two defections in the last three rounds.", opens: "Cooperate on round one.", onCoop: "Keep cooperating, a single defection is shrugged off.", onDefect: "Defect only when 2+ of your last 3 moves were D; otherwise cooperate, with a ~2% chance of an accidental defection.", quirk: "A short memory and a high threshold for anger. It rarely overreacts to noise, which makes it robust against twitchy opponents." },
+  grofman: { principle: "Mostly mirror the opponent, but be the peacemaker. When you're both stuck in mutual defection, occasionally reach out to try to restart cooperation.", essence: "Tit-for-tat that occasionally breaks mutual standoffs with an olive branch.", opens: "Cooperate for the first two rounds.", onCoop: "Cooperate (mirror).", onDefect: "Usually defect back, but under mutual defection it cooperates about 2-in-7 (~28%) to try to restart cooperation.", quirk: "The peacemaker of deadlock. That tiny olive branch keeps it just behind Tit for Tat, matching Axelrod's original ranking." },
+  shubik: { principle: "Punish harder every time, then forgive completely. The more often someone cheats, the longer the payback, but a single cooperation wipes the slate clean.", essence: "Hit back one round harder each time, then forgive completely.", opens: "Cooperate on round one (small chance of a slip).", onCoop: "After its punishment ends, it cooperates cleanly (full forgiveness).", onDefect: "Each new run of defections triggers N+1 defections in return (1st run → 2, 2nd → 3, 3rd → 4…), one round harsher than Tideman, every time.", quirk: "Slightly more vengeful than Tideman: repeat offenders pay a rising price, but it never holds a grudge once you cooperate." },
+  stein: { principle: "Be nice like Tit for Tat, but stay curious: every so often sneak in a defection to probe whether the opponent can be pushed around.", essence: "Tit-for-tat that probes with a defection every 15 rounds.", opens: "Cooperate on round one.", onCoop: "Cooperate (mirror), except every 15th round it defects once as a probe, but only if you've been cooperating.", onDefect: "Defect right back (tit-for-tat), then resume cooperating when you do.", quirk: "A nice strategy with a sneaky streak. Its periodic probes are forgiven by other nice strategies, so it still finishes well." },
+  friedman: { principle: "Trust fully, punish forever. Cooperate without limit, but betray me even once and I will defect against you for the rest of the game.", essence: "Cooperate forever, until the first defection, then never forgive.", opens: "Cooperate on round one.", onCoop: "Keep cooperating, so long as it has never seen a single D from you.", onDefect: "Defect permanently. One defection, ever, and it holds the grudge for the rest of the game.", quirk: "The unforgiving grudger. Flawless in a fully-cooperative world, but any noise or probing drags it into endless mutual ruin, so it ranks poorly." },
+  davis: { principle: "Give a long grace period. Cooperate no matter what for the first ten rounds to build trust, and only then start mirroring the opponent.", essence: "Cooperate blindly for 10 rounds, then switch to tit-for-tat.", opens: "Cooperate unconditionally for rounds 1–10.", onCoop: "After round 10, cooperate back (mirror).", onDefect: "Ignore defections during the first 10 rounds; after that, retaliate one-for-one and forgive when you do.", quirk: "A long opening honeymoon shields it from early noise, at the cost of being exploitable in the first ten rounds (e.g. Unnamed farms it)." },
+  graaskamp: { principle: "Be Tit for Tat, but run one check, a single defection near the midpoint, to test whether the opponent is the exploitable kind.", essence: "Tit-for-tat that defects once around round 50 to test you.", opens: "Cooperate on round one.", onCoop: "Cooperate (mirror) for the first ~49 rounds.", onDefect: "Defect right back (tit-for-tat); also defects once on round 50 as a deliberate probe, then resumes tit-for-tat.", quirk: "Almost identical to Tit for Tat but for one mid-game test. If you don't punish the probe, it learns you're soft, yet among nice company it still does well." },
+  downing: { principle: "Treat each move as a data point. Keep estimating whether cooperating or defecting earns more here, and pick the winner, but it's too pessimistic, so it defects too much.", essence: "Predict whether cooperating or defecting pays more against you, and defect when unsure.", opens: "Defect on round one (it starts assuming the worst).", onCoop: "Keeps estimating; cooperates only if its model says cooperating beats defecting.", onDefect: "If you keep cooperating despite its defections, it keeps exploiting you; if you retaliate, it may slowly switch to cooperation.", quirk: "Axelrod's 'buggy Downing': a clever idea (model the opponent's responsiveness) undermined by a pessimistic prior, so it provokes retaliation and finishes near the bottom." },
+  feld: { principle: "Be nice like Tit for Tat, but human: it slips and defects by accident every so often, even when it meant to cooperate.", essence: "Tit-for-tat with a shaky hand: slips into defection about 1-in-10.", opens: "Cooperate on round one.", onCoop: "Cooperate, but with a 10% chance of an accidental defection.", onDefect: "Defect right back (mirror). The tremor only goes one way: it never accidentally cooperates after a defection.", quirk: "Noise on a nice core. Against forgiving opponents it recovers; against a touchy one (like Tit for Tat) a single slip can lock both into mutual defection." },
+  joss: { principle: "Look cooperative while quietly cheating. Mostly mirror the opponent, but sneak in a defection about one time in ten to skim a small edge.", essence: "Tit-for-tat that cheats: defects 1-in-10 after your cooperation, and always after your defection.", opens: "Cooperate on round one.", onCoop: "Cooperate only 90% of the time, 1-in-10 it defects out of greed.", onDefect: "Always defect back: no forgiveness, and no noise toward cooperation.", quirk: "Nastier than Feld. Against Tit for Tat, one sneaky defection triggers retaliation, and Joss's hard-line response locks both into a cycle of mutual ruin." },
+  tullock: { principle: "Stay one notch meaner than the opponent. Match their overall level of cooperation, then shave a little extra off for yourself.", essence: "Cooperate 10% less often than your opponent has.", opens: "Cooperate for rounds 1–11.", onCoop: "After round 11, cooperate with probability = your cooperation rate minus 0.1 (always slightly nastier than you).", onDefect: "Its cooperation rate falls with yours, if you defect a lot, so does it, but it stays a shade meaner than the running average.", quirk: "Tries to skim a small advantage by being marginally meaner than its opponent, which tends to drag both sides down rather than build trust." },
+  unnamed: { principle: "Probe, then decide. Test with an early defection: if they forgive it, keep exploiting them forever; if they push back, fall in line and play nice.", essence: "Probe with an early defection; exploit the forgiving, turn nice to the ruthless.", opens: "Cooperate, then Defect, then Cooperate, a three-round test on rounds 1–3.", onCoop: "If you forgave its probe (still cooperating on round 3), it exploits you by defecting every round thereafter.", onDefect: "If you punished its probe (defected by round 3), it switches to tit-for-tat, nice, retaliatory, and forgiving from then on.", quirk: "A classic 'tester': it farms forgiving players (like Davis) for easy points, but behaves itself against anyone who pushes back." },
+  random: { principle: "No principle at all. Flip a coin each round and ignore everything, the baseline that proves having a sensible rule matters.", essence: "Coin flip every round, cooperate or defect at 50/50, ignoring everything.", opens: "50/50, could be either.", onCoop: "Irrelevant: it plays 50/50 regardless of what you do.", onDefect: "Irrelevant: it plays 50/50 regardless of what you do.", quirk: "Axelrod's added baseline, and the proof that unpredictability is no virtue, it consistently finishes near the bottom." }
+};
+
+/* ---------- Shared store (cross-screen state) ---------- */
+var store = {
+  screen: "strategies",
+  sel: { 1: "you", 2: "joss" },
+  slot: 1,
+  rounds: 200,
+  payoff: { T: 5, R: 3, P: 1, S: 0 },
+  _subs: {},
+  on: function (e, f) { (this._subs[e] || (this._subs[e] = [])).push(f); return f; },
+  emit: function (e, v) { (this._subs[e] || []).forEach(function (f) { f(v); }); }
+};
+function setSel(slot, key) {
+  if (slot === 2 && key === "you") { flashNotice('<span style="color:var(--defect);font-weight:700">Player 2 can’t be human.</span> <span style="color:var(--ink-2)">Only Player 1 can be played by hand — Player 2 is always a computer strategy. Switch the toggle to Player 1 to play yourself.</span>'); return; }
+  if (store.sel[slot] !== key) { store.sel[slot] = key; store.emit("sel", slot); persist(); }
+}
+var noticeTimer = null;
+function flashNotice(html) {
+  var el = document.getElementById("assignFeedback"); if (!el) return;
+  el.innerHTML = html;
+  el.classList.add("notice"); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+  if (noticeTimer) clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(function () { el.classList.remove("notice"); if (typeof App !== "undefined" && App.renderAssignFeedback) App.renderAssignFeedback(); }, 3800);
+}
+function setSlot(n) { store.slot = n; store.emit("slot", n); persist(); }
+function setRounds(n) { n = Math.max(1, Math.min(1000, n | 0)); if (store.rounds !== n) { store.rounds = n; store.emit("rounds", n); persist(); } }
+function setPayoff(o) { var b = store.payoff, g = function (k) { return Math.max(0, Math.min(20, (o[k] != null ? o[k] : b[k]) | 0)); }; var n = { T: g("T"), R: g("R"), P: g("P"), S: g("S") }; if (n.T !== b.T || n.R !== b.R || n.P !== b.P || n.S !== b.S) { store.payoff = n; rebuildPayoff(); store.emit("payoff"); persist(); } }
+function nameOf(key) { return key === "you" ? HUMAN.name : (BY_KEY[key] ? BY_KEY[key].name : "—"); }
+function renderSlotSummary() {
+  document.getElementById("slotSummary").innerHTML = '<span class="p1n">' + nameOf(store.sel[1]) + '</span><span class="vs">vs</span><span class="p2n">' + nameOf(store.sel[2]) + '</span>';
+}
+function syncRoundsUI() {
+  document.getElementById("roundsLabel").textContent = store.rounds;
+  document.getElementById("roundsOf").textContent = store.rounds;
+  var sel = document.getElementById("roundsSel"), cust = document.getElementById("roundsCustom"), match = false;
+  for (var i = 0; i < sel.options.length; i++) { if (sel.options[i].value !== "custom" && +sel.options[i].value === store.rounds) { sel.value = sel.options[i].value; match = true; } }
+  if (match) { cust.style.display = "none"; } else { sel.value = "custom"; cust.value = store.rounds; cust.style.display = ""; }
+}
+function syncPayoffInputs() { var p = store.payoff; document.getElementById("poR").value = p.R; document.getElementById("poS").value = p.S; document.getElementById("poT").value = p.T; document.getElementById("poP").value = p.P; }
+function renderPayoffSub() { var p = store.payoff; document.getElementById("payoffSub").textContent = "R=" + p.R + " / S=" + p.S + " / T=" + p.T + " / P=" + p.P; }
+function renderPayoffPrimer() { var p = store.payoff; document.getElementById("pgCC").textContent = p.R + " · " + p.R; document.getElementById("pgDC").textContent = p.T + " · " + p.S; document.getElementById("pgCD").textContent = p.S + " · " + p.T; document.getElementById("pgDD").textContent = p.P + " · " + p.P; }
+function renderPayoffWarn() { var el = document.getElementById("poWarn"); if (!el) return; if (isDilemma(store.payoff)) { el.hidden = true; el.textContent = ""; } else { el.hidden = false; el.textContent = "Not a classic Prisoner's Dilemma — needs T > R > P > S and 2R > T + S."; } }
+
+/* ---------- Persistence (localStorage) ---------- */
+var PERSIST_KEY = "axelrod_playground_v1";
+function persist() { try { localStorage.setItem(PERSIST_KEY, JSON.stringify({ sel: store.sel, slot: store.slot, rounds: store.rounds, payoff: store.payoff, screen: store.screen })); } catch (e) {} }
+function restore() { try { var raw = localStorage.getItem(PERSIST_KEY); if (!raw) return; var d = JSON.parse(raw); if (!d || typeof d !== "object") return; if (d.sel && typeof d.sel === "object") { if (d.sel[1] === "you" || BY_KEY[d.sel[1]]) store.sel[1] = d.sel[1]; if (BY_KEY[d.sel[2]]) store.sel[2] = d.sel[2]; } if (d.slot === 1 || d.slot === 2) store.slot = d.slot; if (typeof d.rounds === "number" && d.rounds >= 1 && d.rounds <= 1000) store.rounds = d.rounds | 0; if (d.payoff && typeof d.payoff === "object" && ["T", "R", "P", "S"].every(function (k) { return typeof d.payoff[k] === "number"; })) { store.payoff = { T: Math.max(0, Math.min(20, d.payoff.T | 0)), R: Math.max(0, Math.min(20, d.payoff.R | 0)), P: Math.max(0, Math.min(20, d.payoff.P | 0)), S: Math.max(0, Math.min(20, d.payoff.S | 0)) }; } if (typeof d.screen === "string") store.screen = d.screen; } catch (e) {} }
+
+/* ---------- Router (hash-based screens) ---------- */
+var SCREENS = {};
+var Router = {
+  current: null,
+  init: function () {
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    window.addEventListener("hashchange", this._hash.bind(this));
+    this._hash();
+  },
+  _hash: function () {
+    var name = (location.hash || "#/strategies").replace(/^#\//, "");
+    if (!document.querySelector('[data-screen="' + name + '"]')) name = "strategies";
+    this.go(name, true);
+  },
+  go: function (name, fromHash) {
+    if (!fromHash) { location.hash = "#/" + name; return; }
+    if (this.current === name) return;
+    var prev = this.current; this.current = name; store.screen = name; persist();
+    each(document.querySelectorAll("[data-screen]"), function (el) { el.hidden = el.dataset.screen !== name; });
+    each(document.querySelectorAll("[data-nav]"), function (b) { b.classList.toggle("active", b.dataset.nav === name); });
+    window.scrollTo(0, 0);
+    if (prev && SCREENS[prev] && SCREENS[prev].onLeave) SCREENS[prev].onLeave();
+    if (SCREENS[name] && SCREENS[name].onEnter) SCREENS[name].onEnter();
+  }
+};
+function go(name) { Router.go(name, false); }
+SCREENS.duel = {
+  onLeave: function () { App.wasRunning = !!App.timer; if (App.timer) App.stopAuto(); },
+  onEnter: function () { if (App.wasRunning) document.getElementById("resumeHint").style.display = "flex"; }
+};
+
+/* ---------- Strategy detail modal ---------- */
+function showStrategyInfo(key) {
+  var s = key === "you" ? HUMAN : BY_KEY[key];
+  if (!s) return;
+  var info = INFO[key] || {};
+  var root = document.getElementById("strategyModal"); if (!root) return;
+  document.getElementById("modalIco").innerHTML = icon(s.ic, "ic lg");
+  document.getElementById("modalTitle").textContent = s.name;
+  document.getElementById("modalRole").textContent = key === "you" ? "Human player" : "Strategy";
+  document.getElementById("modalBody").innerHTML =
+    '<div class="modal-principle"><span class="modal-label">The principle</span>' + (info.principle || info.essence || s.rule || "") + '</div>' +
+    '<dl class="modal-dl">' +
+      '<dt>Opening</dt><dd>' + (info.opens || "—") + '</dd>' +
+      '<dt>When you cooperate</dt><dd>' + (info.onCoop || "—") + '</dd>' +
+      '<dt>When you defect</dt><dd>' + (info.onDefect || "—") + '</dd>' +
+    '</dl>' +
+    '<div class="modal-quirk"><strong>Why it matters: </strong>' + (info.quirk || "") + '</div>';
+  App._lastFocus = document.activeElement;
+  root.hidden = false;
+  document.body.style.overflow = "hidden";
+  var x = root.querySelector(".modal-x"); if (x) x.focus();
+}
+function closeStrategyInfo() {
+  var root = document.getElementById("strategyModal"); if (!root) return;
+  root.hidden = true;
+  document.body.style.overflow = "";
+  if (App._lastFocus && App._lastFocus.focus) { try { App._lastFocus.focus(); } catch (e) {} }
+}
+var Modal = {
+  init: function () {
+    var root = document.getElementById("strategyModal"); if (!root) return;
+    each(root.querySelectorAll("[data-modal-close]"), function (b) { b.addEventListener("click", function () { closeStrategyInfo(); }); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !root.hidden) closeStrategyInfo(); });
+  }
+};
+
+/* ---------- App (gallery + duel) ---------- */
+var App = {
+  aInst: null, bInst: null, aH: [], bH: [], aPts: 0, bPts: 0, round: 0, hist1: [0], hist2: [0], moves: [], timer: null, wasRunning: false,
+  get human() { return store.sel[1] === "you"; },
+  get A() { return this.human ? HUMAN : BY_KEY[store.sel[1]]; },
+  get B() { return BY_KEY[store.sel[2]]; },
+
+  init: function () {
+    this.buildGallery();
+    var self = this;
+    document.getElementById("slotToggle").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; setSlot(+b.dataset.slot); });
+    document.getElementById("autoBtn").addEventListener("click", function () { self.toggleAuto(); });
+    document.getElementById("stepBtn").addEventListener("click", function () { self.step(); });
+    document.getElementById("resetBtn").addEventListener("click", function () { self.reset(); });
+    document.getElementById("speed").addEventListener("change", function () { if (self.timer) { self.stopAuto(); self.startAuto(); } });
+    document.getElementById("p1info").addEventListener("click", function () { showStrategyInfo(store.sel[1]); });
+    document.getElementById("p2info").addEventListener("click", function () { showStrategyInfo(store.sel[2]); });
+    each(document.querySelectorAll("#humanPad .btn"), function (b) { b.addEventListener("click", function () { self.humanStep(b.dataset.m); }); });
+    each(document.querySelectorAll("[data-nav]"), function (b) { b.addEventListener("click", function () { go(b.dataset.nav); }); });
+    document.addEventListener("keydown", function (e) { if (e.metaKey || e.ctrlKey || e.altKey) return; var a = document.activeElement; if (a && (a.tagName === "INPUT" || a.tagName === "SELECT" || a.tagName === "TEXTAREA")) return; var m = { "1": "strategies", "2": "duel", "3": "tournament", "4": "ecology" }; if (m[e.key]) { e.preventDefault(); go(m[e.key]); } });
+    document.getElementById("toPlayBtn").addEventListener("click", function () { go("duel"); });
+    document.getElementById("roundsSel").addEventListener("change", function () {
+      var cust = document.getElementById("roundsCustom");
+      if (this.value === "custom") { cust.value = store.rounds; cust.style.display = ""; cust.focus(); cust.select(); }
+      else { cust.style.display = "none"; setRounds(+this.value); }
+    });
+    document.getElementById("roundsCustom").addEventListener("change", function () { setRounds(+this.value || 200); });
+    each(document.querySelectorAll(".po-input"), function (inp) { inp.addEventListener("change", function () { var o = {}; o[inp.id.replace("po", "")] = +inp.value; setPayoff(o); }); });
+    document.getElementById("poReset").addEventListener("click", function () { setPayoff(DEFAULT_PAYOFF); });
+    document.getElementById("resumeBtn").addEventListener("click", function () { document.getElementById("resumeHint").style.display = "none"; self.wasRunning = false; self.startAuto(); });
+    store.on("sel", function () { self.reset(); self.renderGallery(); renderSlotSummary(); self.renderAssignFeedback(); });
+    store.on("slot", function () { self.renderToggle(); self.renderGallery(); self.renderAssignFeedback(); });
+    store.on("rounds", function () { self.reset(); syncRoundsUI(); });
+    store.on("payoff", function () { self.reset(); syncPayoffInputs(); renderPayoffSub(); renderPayoffPrimer(); renderPayoffWarn(); });
+    this.renderToggle();
+    renderSlotSummary();
+    this.renderAssignFeedback();
+    this.reset();
+    syncRoundsUI();
+    syncPayoffInputs(); renderPayoffSub(); renderPayoffPrimer(); renderPayoffWarn();
+    Router.init();
+  },
+
+  buildGallery: function () {
+    var g = document.getElementById("gallery");
+    var list = [HUMAN].concat(STRATEGIES);
+    g.innerHTML = list.map(function (s) {
+      var isYou = s.key === "you";
+      var tag = isYou ? '<span class="tag you">You</span>' : s.nice === true ? '<span class="tag nice">Nice</span>' : s.nice === false ? '<span class="tag nasty">Nasty</span>' : '<span class="tag neutral">Neutral</span>';
+      var role = isYou ? "play as human" : "strategy";
+      return '<div class="scard" data-key="' + s.key + '"><div class="top"><div class="ico">' + icon(s.ic) + '</div><div><div class="nm">' + s.name + '</div><div class="role">' + role + '</div></div></div>' + tag + '<p class="rule">' + ((INFO[s.key] && INFO[s.key].principle) || s.rule) + '</p><div class="card-foot"><button class="info-btn" type="button" data-info="' + s.key + '">' + icon("info") + '<span>How it plays</span></button></div><div class="assign" style="display:none"></div></div>';
+    }).join("");
+    each(g.querySelectorAll(".scard"), function (card) {
+      card.addEventListener("click", function () { setSel(store.slot, card.dataset.key); });
+    });
+    each(g.querySelectorAll(".info-btn"), function (btn) {
+      btn.addEventListener("click", function (e) { e.stopPropagation(); showStrategyInfo(btn.dataset.info); });
+    });
+    this.renderGallery();
+  },
+  renderGallery: function () {
+    var p2 = store.slot === 2;
+    each(document.querySelectorAll(".scard"), function (card) {
+      var k = card.dataset.key; card.classList.remove("is1", "is2", "locked");
+      var a = card.querySelector(".assign");
+      if (store.sel[1] === k) { card.classList.add("is1"); a.style.display = "block"; a.className = "assign a1"; a.textContent = "P1"; }
+      else if (store.sel[2] === k) { card.classList.add("is2"); a.style.display = "block"; a.className = "assign a2"; a.textContent = "P2"; }
+      else if (k === "you" && p2) { card.classList.add("locked"); a.style.display = "block"; a.className = "assign a1"; a.textContent = "P1 only"; }
+      else { a.style.display = "none"; }
+    });
+  },
+  renderToggle: function () {
+    each(document.querySelectorAll("#slotToggle button"), function (b) { b.className = (+b.dataset.slot === store.slot ? "on" + store.slot : ""); });
+  },
+  renderAssignFeedback: function () {
+    var el = document.getElementById("assignFeedback"); if (!el) return;
+    var html;
+    if (store.slot === 2) {
+      html = '<span style="color:var(--p2);font-weight:700">Player 2 ← ' + nameOf(store.sel[2]) + '</span> <span style="color:var(--ink-2);font-weight:600">— a computer strategy.</span> <span style="color:var(--muted)">Player 2 is always a computer; the “You” card is for Player 1 only.</span>';
+    } else if (store.sel[1] === "you") {
+      html = '<span style="color:var(--coop);font-weight:700">✓ You are Player 1</span> <span style="color:var(--ink-2);font-weight:600">— playing by hand.</span> <span style="color:var(--muted)">Now pick an opponent for Player 2, then Go to Playground.</span>';
+    } else {
+      html = '<span style="color:var(--p1);font-weight:700">Player 1 ← ' + nameOf(store.sel[1]) + '</span> <span style="color:var(--ink-2);font-weight:600">·</span> <span style="color:var(--p2);font-weight:700">Player 2 ← ' + nameOf(store.sel[2]) + '</span> <span style="color:var(--muted)">— both computer strategies. Tap any card to reassign the active player.</span>';
+    }
+    el.innerHTML = html;
+    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+  },
+
+  reset: function () {
+    this.stopAuto();
+    this.wasRunning = false;
+    document.getElementById("resumeHint").style.display = "none";
+    this.aInst = this.human ? null : this.A.make();
+    this.bInst = this.B.make();
+    this.aH = []; this.bH = []; this.aPts = 0; this.bPts = 0; this.round = 0; this.hist1 = [0]; this.hist2 = [0]; this.moves = [];
+    document.getElementById("p1ico").innerHTML = icon(this.A.ic); document.getElementById("p1nm").textContent = this.A.name; document.getElementById("p1role").textContent = "Player 1" + (this.human ? " · human" : "");
+    document.getElementById("p2ico").innerHTML = icon(this.B.ic); document.getElementById("p2nm").textContent = this.B.name; document.getElementById("p2role").textContent = "Player 2";
+    document.getElementById("roundHead").innerHTML = '<th class="lbl corner">#</th>';
+    document.getElementById("row1").innerHTML = '<th class="lbl" id="lbl1">' + this.A.name + '</th>';
+    document.getElementById("row2").innerHTML = '<th class="lbl" id="lbl2">' + this.B.name + '</th>';
+    document.getElementById("tableEmpty").style.display = "";
+    document.getElementById("tableEmpty").textContent = this.human ? "No rounds yet — choose Cooperate or Defect." : "No rounds yet — press Play.";
+    document.getElementById("humanPad").style.display = this.human ? "flex" : "none";
+    document.getElementById("stepBtn").style.display = this.human ? "none" : "inline-flex";
+    document.getElementById("autoBtn").style.display = this.human ? "none" : "inline-flex";
+    this.render();
+  },
+  play: function (am, bm) {
+    var p = PAYOFF[am + bm]; this.aPts += p[0]; this.bPts += p[1];
+    this.aH.push(am); this.bH.push(bm); this.round++; this.moves.push({ a: am, b: bm, p: am + bm });
+    this.appendRow(am, bm, p);
+    this.render();
+  },
+  appendRow: function (am, bm, p) {
+    document.getElementById("tableEmpty").style.display = "none";
+    var rh = document.createElement("th"); rh.textContent = this.round;
+    document.getElementById("roundHead").appendChild(rh);
+    var mk = function (mv, pts) { return '<div class="cell"><span class="box ' + mv + '">' + mv + '</span><span class="pts' + (pts === 0 ? " zero" : "") + '">' + (pts === 0 ? "0" : "+" + pts) + '</span></div>'; };
+    var c1 = document.createElement("td"); c1.innerHTML = mk(am, p[0]);
+    var c2 = document.createElement("td"); c2.innerHTML = mk(bm, p[1]);
+    document.getElementById("row1").appendChild(c1);
+    document.getElementById("row2").appendChild(c2);
+    var sc = document.getElementById("tableScroll"); sc.scrollLeft = sc.scrollWidth;
+  },
+  step: function () { if (this.human || this.round >= store.rounds) return; this.play(this.aInst.move(this.aH, this.bH), this.bInst.move(this.bH, this.aH)); },
+  humanStep: function (am) { if (this.round >= store.rounds) return; this.play(am, this.bInst.move(this.bH, this.aH)); },
+  startAuto: function () {
+    var ms = +document.getElementById("speed").value; var self = this;
+    this.wasRunning = false;
+    document.getElementById("resumeHint").style.display = "none";
+    document.getElementById("autoLbl").textContent = "Pause";
+    if (ms === 0) { while (this.round < store.rounds) this.step(); this.stopAuto(); return; }
+    this.timer = setInterval(function () { if (self.round >= store.rounds) { self.stopAuto(); return; } self.step(); }, ms);
+  },
+  stopAuto: function () { if (this.timer) clearInterval(this.timer); this.timer = null; document.getElementById("autoLbl").textContent = "Play"; },
+  toggleAuto: function () { if (this.human) return; if (this.timer) this.stopAuto(); else this.startAuto(); },
+
+  render: function () {
+    document.getElementById("p1score").textContent = this.aPts;
+    document.getElementById("p2score").textContent = this.bPts;
+    document.getElementById("roundNow").textContent = this.round;
+    document.getElementById("vbar").style.width = (this.round / store.rounds * 100) + "%";
+    var al = this.aH.length ? this.aH[this.aH.length - 1] : "_", bl = this.bH.length ? this.bH[this.bH.length - 1] : "_";
+    document.getElementById("p1last").className = "movechip " + al; document.getElementById("p1last").textContent = al === "_" ? "·" : al;
+    document.getElementById("p2last").className = "movechip " + bl; document.getElementById("p2last").textContent = bl === "_" ? "·" : bl;
+    var oc = document.getElementById("outcome");
+    if (this.round === 0) oc.innerHTML = this.human ? '<div class="ot">Your move</div><div class="op">press Cooperate or Defect</div>' : '<div class="ot">Press play</div><div class="op">to begin</div>';
+    else { var o = OUTCOMES[this.moves[this.moves.length - 1].p]; oc.innerHTML = '<div class="ot">' + o[0] + '</div><div class="op">this round ' + o[1] + '</div>'; }
+    if (this.round >= store.rounds) { var win = this.aPts === this.bPts ? "It's a tie" : (this.aPts > this.bPts ? this.A.name : this.B.name) + " wins"; oc.innerHTML = '<div class="ot">' + win + '</div><div class="op">final ' + this.aPts + " · " + this.bPts + "</div>"; }
+  }
+};
+
+/* ---------- Tournament ---------- */
+function runTournament() {
+  var N = STRATEGIES.length, totals = new Array(N).fill(0), games = new Array(N).fill(0);
+  for (var i = 0; i < N; i++) { for (var j = i; j < N; j++) {
+    var A = STRATEGIES[i].make(), B = STRATEGIES[j].make(), aH = [], bH = [], as = 0, bs = 0;
+    for (var r = 0; r < TOURNAMENT_ROUNDS; r++) { var am = A.move(aH, bH), bm = B.move(bH, aH); var p = PAYOFF[am + bm]; as += p[0]; bs += p[1]; aH.push(am); bH.push(bm); }
+    totals[i] += as; totals[j] += bs; games[i]++; games[j]++;
+  } }
+  var rows = STRATEGIES.map(function (s, i) { return { s: s, avg: totals[i] / (TOURNAMENT_ROUNDS * games[i]) }; });
+  rows.sort(function (x, y) { return y.avg - x.avg; });
+  renderLeaderboard(rows);
+}
+function renderLeaderboard(rows) {
+  var max = rows[0].avg, body = document.getElementById("lbBody"); body.innerHTML = "";
+  rows.forEach(function (r, idx) {
+    var s = r.s; var tag = s.nice === true ? '<span class="tag nice">Nice</span>' : s.nice === false ? '<span class="tag nasty">Nasty</span>' : '<span class="tag neutral">Neutral</span>';
+    var crown = '<svg class="rk-ic" viewBox="0 0 24 24"><path d="M3 17V9l4.5 3L12 5l4.5 7L21 9v8z" fill="currentColor"/></svg>';
+    var rk = idx === 0 ? '<span class="rk rk1">' + crown + '</span>' : '<span class="rk">' + (idx + 1) + '</span>';
+    var tr = document.createElement("tr");
+    if (idx === 0) tr.classList.add("r1");
+    tr.innerHTML = '<td>' + rk + '</td>' +
+      '<td><div class="nmcell"><div class="lico">' + icon(s.ic) + '</div><span>' + s.name + '</span></div></td>' +
+      '<td>' + tag + '</td>' +
+      '<td class="bar-cell"><div class="bar' + (idx === 0 ? " bar1" : "") + '" data-w="' + (r.avg / max * 100).toFixed(1) + '"></div></td>' +
+      '<td class="num">' + r.avg.toFixed(3) + '</td>';
+    body.appendChild(tr);
+  });
+  requestAnimationFrame(function () { each(body.querySelectorAll(".bar"), function (b, k) { setTimeout(function () { b.style.width = b.getAttribute("data-w") + "%"; }, k * 45); }); });
+}
+
+/* ---------- Tournament controller ---------- */
+var Tournament = {
+  init: function () { document.getElementById("runBtn").addEventListener("click", function () { Tournament.run(); }); },
+  run: function () { runTournament(); }
+};
+SCREENS.tournament = Tournament;
+
+/* Ecology: replicator dynamics on the payoff matrix */
+function computeMatrix(reps) {
+  var M = []; for (var i = 0; i < STRATEGIES.length; i++) M.push(new Array(STRATEGIES.length).fill(0));
+  for (var i = 0; i < STRATEGIES.length; i++) { for (var j = i; j < STRATEGIES.length; j++) { var aI = 0, aJ = 0;
+    for (var rep = 0; rep < reps; rep++) { var A = STRATEGIES[i].make(), B = STRATEGIES[j].make(), aH = [], bH = [], as = 0, bs = 0;
+      for (var r = 0; r < TOURNAMENT_ROUNDS; r++) { var am = A.move(aH, bH), bm = B.move(bH, aH); var p = PAYOFF[am + bm]; as += p[0]; bs += p[1]; aH.push(am); bH.push(bm); }
+      aI += as / TOURNAMENT_ROUNDS; aJ += bs / TOURNAMENT_ROUNDS; }
+    M[i][j] = aI / reps; M[j][i] = aJ / reps; } }
+  return M;
+}
+function runEcology(M, gens) {
+  var n = M.length, prop = new Array(n).fill(1 / n), hist = [prop.slice()];
+  for (var g = 0; g < gens; g++) { var fit = new Array(n).fill(0);
+    for (var i = 0; i < n; i++) { var s = 0; for (var j = 0; j < n; j++) s += prop[j] * M[i][j]; fit[i] = s; }
+    var mean = 0; for (var i = 0; i < n; i++) mean += prop[i] * fit[i];
+    var np = new Array(n); for (var i = 0; i < n; i++) { np[i] = prop[i] * fit[i] / mean; if (np[i] < 1e-6) np[i] = 0; }
+    var sum = 0; for (var i = 0; i < n; i++) sum += np[i]; for (var i = 0; i < n; i++) np[i] /= sum;
+    prop = np; hist.push(prop.slice()); }
+  return hist;
+}
+var ECO_COLORS = ["#5566C9", "#2E9D6A", "#C99A3E", "#D9574E", "#3FA7C4", "#E07B39", "#1F7A8C", "#B8324B", "#6B8E23", "#9C6B2E", "#C2185B", "#00897B", "#AD6F00", "#5C6B73", "#4E8C5A"]; /* one distinct colour per strategy; index 0 (indigo) marks the dominant — no purple */
+function ecoOrder(hist) { var n = STRATEGIES.length, fin = hist[hist.length - 1], order = []; for (var i = 0; i < n; i++) order.push(i); order.sort(function (a, b) { return fin[b] - fin[a]; }); return { order: order, fin: fin }; }
+function drawEcoLines(hist, order, upto) {
+  var G = hist.length - 1, W = 600, H = 320, pad = 10;
+  var X = function (g) { return pad + (g / G) * (W - 2 * pad); };
+  var Y = function (v) { return H - pad - v * (H - 2 * pad); };
+  var gEl = document.getElementById("ecoLines"); gEl.innerHTML = "";
+  var mkLine = function (idx, color, w) { var pts = ""; for (var g2 = 0; g2 <= upto; g2++) pts += X(g2).toFixed(1) + "," + Y(hist[g2][idx]).toFixed(1) + " "; var pl = document.createElementNS("http://www.w3.org/2000/svg", "polyline"); pl.setAttribute("points", pts.trim()); pl.setAttribute("fill", "none"); pl.setAttribute("stroke", color); pl.setAttribute("stroke-width", w); pl.setAttribute("stroke-linejoin", "round"); pl.setAttribute("stroke-linecap", "round"); pl.setAttribute("vector-effect", "non-scaling-stroke"); gEl.appendChild(pl); };
+  var mkArea = function (idx, color) { var pts = X(0).toFixed(1) + "," + Y(0).toFixed(1) + " "; for (var g2 = 0; g2 <= upto; g2++) pts += X(g2).toFixed(1) + "," + Y(hist[g2][idx]).toFixed(1) + " "; pts += X(upto).toFixed(1) + "," + Y(0).toFixed(1); var po = document.createElementNS("http://www.w3.org/2000/svg", "polygon"); po.setAttribute("points", pts.trim()); po.setAttribute("fill", color); po.setAttribute("opacity", "0.1"); gEl.appendChild(po); };
+  mkArea(order[0], ECO_COLORS[0]);
+  for (var r = STRATEGIES.length - 1; r >= 0; r--) { var i = order[r]; var w = r === 0 ? 3 : r < 3 ? 2.2 : 1.4; mkLine(i, ECO_COLORS[r] || "#9AA1AB", w); }
+}
+function drawEcoLegend(order, fin) {
+  var leg = document.getElementById("ecoLegend"); leg.innerHTML = "";
+  order.slice(0, 6).forEach(function (i, c) { var col = ECO_COLORS[c] || "#9AA1AB"; leg.innerHTML += '<span class="ld"><i style="background:' + col + '"></i>' + STRATEGIES[i].name + ' <b>' + (fin[i] * 100).toFixed(1) + '%</b></span>'; });
+}
+/* ---------- Ecology controller (animated reveal) ---------- */
+var Ecology = {
+  busy: false, raf: 0,
+  init: function () { document.getElementById("ecoBtn").addEventListener("click", function () { Ecology.run(); }); },
+  run: function () {
+    if (this.busy) return;
+    this.busy = true;
+    if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; }
+    var btn = document.getElementById("ecoBtn"); btn.disabled = true;
+    var status = document.getElementById("ecoStatus");
+    status.textContent = "Computing payoff matrix…";
+    var self = this;
+    setTimeout(function () {
+      var M = computeMatrix(8); var hist = runEcology(M, 150);
+      var of = ecoOrder(hist), G = hist.length - 1;
+      drawEcoLegend(of.order, of.fin);
+      var start = null, DURATION = 2600;
+      function frame(ts) {
+        if (start == null) start = ts;
+        var p = Math.min(1, (ts - start) / DURATION);
+        var upto = Math.max(1, Math.round(p * G));
+        drawEcoLines(hist, of.order, upto);
+        var cur = hist[upto], bi = 0; for (var i = 1; i < STRATEGIES.length; i++) if (cur[i] > cur[bi]) bi = i;
+        status.innerHTML = "Evolving — generation <b>" + upto + "</b> / " + G + ": <b>" + STRATEGIES[bi].name + "</b> leading at " + (cur[bi] * 100).toFixed(1) + "%.";
+        if (p < 1) { self.raf = requestAnimationFrame(frame); }
+        else { var fbi = 0; for (var i = 1; i < STRATEGIES.length; i++) if (of.fin[i] > of.fin[fbi]) fbi = i; status.innerHTML = "After " + G + " generations: <b>" + STRATEGIES[fbi].name + "</b> dominates at " + (of.fin[fbi] * 100).toFixed(1) + "% — nasty strategies have gone extinct."; self.busy = false; btn.disabled = false; self.raf = 0; }
+      }
+      self.raf = requestAnimationFrame(frame);
+    }, 40);
+  }
+};
+SCREENS.ecology = Ecology;
+
+try {
+  restore();
+  rebuildPayoff();
+  if (!location.hash && store.screen !== "strategies" && document.querySelector('[data-screen="' + store.screen + '"]')) location.hash = "#/" + store.screen;
+  Tournament.init();
+  Ecology.init();
+  Modal.init();
+  App.init();
+} catch (err) { showFatal(err && err.message ? err.message : String(err)); }
+</script>
+</body>
+</html>
